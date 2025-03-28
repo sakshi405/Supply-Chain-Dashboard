@@ -1,0 +1,103 @@
+SHOW INTEGRATIONS;
+DROP INTEGRATION S3_INTEGRATION;
+
+
+CREATE OR REPLACE STORAGE INTEGRATION SC_Integration
+  TYPE = EXTERNAL_STAGE
+  STORAGE_PROVIDER = 'S3'
+  ENABLED = TRUE
+  STORAGE_AWS_ROLE_ARN = 'arn:aws:iam::290333424827:role/supplychain.role'
+  STORAGE_ALLOWED_LOCATIONS = ('s3://supplychain.project/')
+  COMMENT = 'Optional Comment'
+
+
+  //description Integration Object
+  desc integration SC_Integration;
+
+//drop integration PBI_Integration
+
+CREATE database SupplyChain;
+
+create schema SC_Data;
+
+CREATE TABLE SC_Dataset (
+    Product_type STRING,
+    SKU STRING,
+    Price FLOAT,
+    Availability INT,
+    Number_of_products_sold INT,
+    Revenue_generated FLOAT,
+    Customer_demographics STRING,
+    Stock_levels INT,
+    Lead_times INT,
+    Order_quantities INT,
+    Shipping_times INT,
+    Shipping_carriers STRING,
+    Shipping_costs FLOAT,
+    Supplier_name STRING,
+    Location STRING,
+    Lead_time INT,
+    Production_volumes INT,
+    Manufacturing_lead_time INT,
+    Manufacturing_costs FLOAT,
+    Inspection_results STRING,
+    Defect_rates FLOAT,
+    Transportation_modes STRING,
+    Routes STRING,
+    Costs FLOAT
+);
+
+select * from SC_Dataset;
+
+
+CREATE STAGE SupplyChain.SC_Data.sc_stage
+URL = 's3://supplychain.project/'
+STORAGE_INTEGRATION = SC_Integration;
+
+
+
+CREATE OR REPLACE FILE FORMAT SupplyChain.SC_Data.csv_format
+TYPE = CSV
+FIELD_DELIMITER = ','
+SKIP_HEADER = 1
+TRIM_SPACE = TRUE;
+
+
+COPY INTO SC_Dataset
+FROM @SupplyChain.SC_Data.sc_stage
+FILE_FORMAT = SupplyChain.SC_Data.csv_format
+ON_ERROR = 'CONTINUE';
+
+
+create table operations as
+select * from sc_dataset;
+
+select * from operations;
+
+ALTER TABLE operations 
+RENAME COLUMN "NUMBER_OF_PRODUCTS_SOLD" TO "PRODUCT_SOLD";
+
+ALTER TABLE operations
+RENAME COLUMN "REVENUE_GENERATED" TO "REVENUE";
+
+ALTER TABLE operations 
+RENAME COLUMN "MANUFACTURING_LEAD_TIME" TO "MFG_LEAD_TIME";
+
+ALTER TABLE operations
+RENAME COLUMN "MANUFACTURING_COSTS" TO "MFG_COSTS";
+
+select * from operations ;
+
+ALTER TABLE operations 
+ADD COLUMN "PROFIT MARGIN" FLOAT;
+
+UPDATE operations 
+SET "PROFIT MARGIN" = "REVENUE" - ("MFG_COSTS" + "COSTS" + "SHIPPING_COSTS");
+
+ALTER TABLE operations 
+ADD COLUMN "PROFIT MARGIN %" FLOAT;
+
+UPDATE operations 
+SET "PROFIT MARGIN %" = ("PROFIT MARGIN" / "REVENUE") * 100;
+
+select * from operations ;
